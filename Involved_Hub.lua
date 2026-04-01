@@ -1,409 +1,356 @@
-local ok, err = pcall(function()
-	local Players = game:GetService("Players")
-	local TweenService = game:GetService("TweenService")
-	local UserInputService = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 
-	local player = Players.LocalPlayer
-	if not player then
-		error("LocalPlayer not found")
-	end
+local player = Players.LocalPlayer
+if not player then
+	return
+end
 
-	local playerGui = player:WaitForChild("PlayerGui")
+local playerGui = player:WaitForChild("PlayerGui")
 
-	local existing = playerGui:FindFirstChild("Involved_Hub")
-	if existing then
-		existing:Destroy()
-	end
+local oldGui = playerGui:FindFirstChild("Involved_Hub")
+if oldGui then
+	oldGui:Destroy()
+end
 
-	local screenGui = Instance.new("ScreenGui")
-	screenGui.Name = "Involved_Hub"
-	screenGui.ResetOnSpawn = false
-	screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-	screenGui.Parent = playerGui
+local function tween(object, time, properties, style, direction)
+	local info = TweenInfo.new(
+		time,
+		style or Enum.EasingStyle.Quad,
+		direction or Enum.EasingDirection.Out
+	)
 
-	local function makeCorner(object, radius)
-		local corner = Instance.new("UICorner")
-		corner.CornerRadius = UDim.new(0, radius)
-		corner.Parent = object
-		return corner
-	end
+	local animation = TweenService:Create(object, info, properties)
+	animation:Play()
+	return animation
+end
 
-	local function makeStroke(object, color, thickness, transparency)
-		local stroke = Instance.new("UIStroke")
-		stroke.Color = color
-		stroke.Thickness = thickness or 1
-		stroke.Transparency = transparency or 0
-		stroke.Parent = object
-		return stroke
-	end
+local function addCorner(object, radius)
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, radius)
+	corner.Parent = object
+end
 
-	local function tween(object, duration, properties, style, direction)
-		local info = TweenInfo.new(
-			duration,
-			style or Enum.EasingStyle.Quad,
-			direction or Enum.EasingDirection.Out
-		)
+local function addStroke(object, color, thickness)
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = color
+	stroke.Thickness = thickness or 1
+	stroke.Parent = object
+end
 
-		local tw = TweenService:Create(object, info, properties)
-		tw:Play()
-		return tw
-	end
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "Involved_Hub"
+screenGui.ResetOnSpawn = false
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+screenGui.Parent = playerGui
 
-	local openButton = Instance.new("TextButton")
-	openButton.Name = "OpenButton"
-	openButton.AnchorPoint = Vector2.new(0, 0.5)
-	openButton.Position = UDim2.new(0, 14, 0.5, 0)
-	openButton.Size = UDim2.new(0, 132, 0, 48)
-	openButton.BackgroundColor3 = Color3.fromRGB(255, 95, 170)
-	openButton.Text = "Open Hub"
-	openButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-	openButton.TextScaled = true
-	openButton.Font = Enum.Font.GothamBold
-	openButton.Visible = false
-	openButton.AutoButtonColor = true
-	openButton.Parent = screenGui
-	makeCorner(openButton, 18)
-	makeStroke(openButton, Color3.fromRGB(255, 228, 240), 2, 0.1)
+local openButton = Instance.new("TextButton")
+openButton.Name = "OpenButton"
+openButton.Size = UDim2.new(0, 130, 0, 44)
+openButton.Position = UDim2.new(0, 14, 0.5, -22)
+openButton.BackgroundColor3 = Color3.fromRGB(255, 92, 170)
+openButton.Text = "Open Hub"
+openButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+openButton.TextScaled = true
+openButton.Font = Enum.Font.GothamBold
+openButton.Visible = false
+openButton.Parent = screenGui
+addCorner(openButton, 18)
+addStroke(openButton, Color3.fromRGB(255, 220, 235), 2)
 
-	local hub = Instance.new("Frame")
-	hub.Name = "Hub"
-	hub.AnchorPoint = Vector2.new(0.5, 0.5)
-	hub.Position = UDim2.new(0.5, 0, 0.5, 0)
-	hub.Size = UDim2.new(0, 420, 0, 280)
-	hub.BackgroundColor3 = Color3.fromRGB(255, 205, 226)
-	hub.BorderSizePixel = 0
-	hub.Parent = screenGui
-	makeCorner(hub, 24)
-	makeStroke(hub, Color3.fromRGB(255, 120, 185), 3, 0)
+local main = Instance.new("Frame")
+main.Name = "Main"
+main.AnchorPoint = Vector2.new(0.5, 0.5)
+main.Position = UDim2.new(0.5, 0, 0.5, 0)
+main.Size = UDim2.new(0, 420, 0, 280)
+main.BackgroundColor3 = Color3.fromRGB(255, 206, 228)
+main.BorderSizePixel = 0
+main.Parent = screenGui
+addCorner(main, 24)
+addStroke(main, Color3.fromRGB(255, 120, 185), 3)
 
-	local sizeConstraint = Instance.new("UISizeConstraint")
-	sizeConstraint.MinSize = Vector2.new(280, 220)
-	sizeConstraint.MaxSize = Vector2.new(520, 360)
-	sizeConstraint.Parent = hub
+local sizeConstraint = Instance.new("UISizeConstraint")
+sizeConstraint.MinSize = Vector2.new(280, 220)
+sizeConstraint.MaxSize = Vector2.new(520, 360)
+sizeConstraint.Parent = main
 
-	local shadow = Instance.new("ImageLabel")
-	shadow.Name = "Shadow"
-	shadow.AnchorPoint = Vector2.new(0.5, 0.5)
-	shadow.Position = UDim2.new(0.5, 0, 0.5, 8)
-	shadow.Size = UDim2.new(1, 36, 1, 38)
-	shadow.BackgroundTransparency = 1
-	shadow.Image = "rbxassetid://1316045217"
-	shadow.ImageColor3 = Color3.fromRGB(255, 145, 200)
-	shadow.ImageTransparency = 0.45
-	shadow.ScaleType = Enum.ScaleType.Slice
-	shadow.SliceCenter = Rect.new(10, 10, 118, 118)
-	shadow.ZIndex = 0
-	shadow.Parent = hub
-	hub.ZIndex = 2
+local header = Instance.new("Frame")
+header.Name = "Header"
+header.Size = UDim2.new(1, 0, 0, 52)
+header.BackgroundColor3 = Color3.fromRGB(255, 117, 186)
+header.BorderSizePixel = 0
+header.Parent = main
+addCorner(header, 24)
 
-	local topBar = Instance.new("Frame")
-	topBar.Name = "TopBar"
-	topBar.Size = UDim2.new(1, 0, 0, 52)
-	topBar.BackgroundColor3 = Color3.fromRGB(255, 118, 186)
-	topBar.BorderSizePixel = 0
-	topBar.Parent = hub
-	makeCorner(topBar, 24)
+local headerFill = Instance.new("Frame")
+headerFill.Size = UDim2.new(1, 0, 0, 18)
+headerFill.Position = UDim2.new(0, 0, 1, -18)
+headerFill.BackgroundColor3 = header.BackgroundColor3
+headerFill.BorderSizePixel = 0
+headerFill.Parent = header
 
-	local topFill = Instance.new("Frame")
-	topFill.Size = UDim2.new(1, 0, 0, 18)
-	topFill.Position = UDim2.new(0, 0, 1, -18)
-	topFill.BackgroundColor3 = Color3.fromRGB(255, 118, 186)
-	topFill.BorderSizePixel = 0
-	topFill.Parent = topBar
+local title = Instance.new("TextLabel")
+title.BackgroundTransparency = 1
+title.Position = UDim2.new(0, 16, 0, 4)
+title.Size = UDim2.new(1, -120, 0, 22)
+title.Text = "Involved Hub"
+title.TextColor3 = Color3.fromRGB(255, 245, 250)
+title.TextScaled = true
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Font = Enum.Font.GothamBold
+title.Parent = header
 
-	local title = Instance.new("TextLabel")
-	title.BackgroundTransparency = 1
-	title.Position = UDim2.new(0, 16, 0, 0)
-	title.Size = UDim2.new(1, -120, 1, 0)
-	title.Text = "Involved Hub"
-	title.TextColor3 = Color3.fromRGB(255, 245, 250)
-	title.TextScaled = true
-	title.TextXAlignment = Enum.TextXAlignment.Left
-	title.Font = Enum.Font.GothamBold
-	title.Parent = topBar
+local subtitle = Instance.new("TextLabel")
+subtitle.BackgroundTransparency = 1
+subtitle.Position = UDim2.new(0, 18, 0, 26)
+subtitle.Size = UDim2.new(1, -150, 0, 16)
+subtitle.Text = "Cute pink GUI for mobile and PC"
+subtitle.TextColor3 = Color3.fromRGB(255, 230, 240)
+subtitle.TextScaled = true
+subtitle.TextXAlignment = Enum.TextXAlignment.Left
+subtitle.Font = Enum.Font.GothamMedium
+subtitle.Parent = header
 
-	local subTitle = Instance.new("TextLabel")
-	subTitle.BackgroundTransparency = 1
-	subTitle.Position = UDim2.new(0, 18, 0, 29)
-	subTitle.Size = UDim2.new(1, -160, 0, 16)
-	subTitle.Text = "Cute pink mobile + PC panel"
-	subTitle.TextColor3 = Color3.fromRGB(255, 230, 240)
-	subTitle.TextScaled = true
-	subTitle.TextXAlignment = Enum.TextXAlignment.Left
-	subTitle.Font = Enum.Font.GothamMedium
-	subTitle.Parent = topBar
+local hideButton = Instance.new("TextButton")
+hideButton.Name = "HideButton"
+hideButton.AnchorPoint = Vector2.new(1, 0.5)
+hideButton.Position = UDim2.new(1, -12, 0.5, 0)
+hideButton.Size = UDim2.new(0, 34, 0, 34)
+hideButton.BackgroundColor3 = Color3.fromRGB(255, 235, 244)
+hideButton.Text = "X"
+hideButton.TextColor3 = Color3.fromRGB(255, 85, 160)
+hideButton.TextScaled = true
+hideButton.Font = Enum.Font.GothamBold
+hideButton.Parent = header
+addCorner(hideButton, 99)
+addStroke(hideButton, Color3.fromRGB(255, 190, 220), 2)
 
-	local hideButton = Instance.new("TextButton")
-	hideButton.Name = "HideButton"
-	hideButton.AnchorPoint = Vector2.new(1, 0.5)
-	hideButton.Position = UDim2.new(1, -12, 0.5, 0)
-	hideButton.Size = UDim2.new(0, 34, 0, 34)
-	hideButton.BackgroundColor3 = Color3.fromRGB(255, 235, 244)
-	hideButton.Text = "X"
-	hideButton.TextColor3 = Color3.fromRGB(255, 90, 160)
-	hideButton.TextScaled = true
-	hideButton.Font = Enum.Font.GothamBold
-	hideButton.Parent = topBar
-	makeCorner(hideButton, 999)
-	makeStroke(hideButton, Color3.fromRGB(255, 180, 215), 2, 0)
+local tabs = Instance.new("Frame")
+tabs.Name = "Tabs"
+tabs.BackgroundTransparency = 1
+tabs.Position = UDim2.new(0, 12, 0, 66)
+tabs.Size = UDim2.new(0, 116, 1, -78)
+tabs.Parent = main
 
-	local tabsFrame = Instance.new("Frame")
-	tabsFrame.Name = "Tabs"
-	tabsFrame.BackgroundTransparency = 1
-	tabsFrame.Position = UDim2.new(0, 12, 0, 66)
-	tabsFrame.Size = UDim2.new(0, 116, 1, -78)
-	tabsFrame.Parent = hub
+local tabsLayout = Instance.new("UIListLayout")
+tabsLayout.Padding = UDim.new(0, 8)
+tabsLayout.SortOrder = Enum.SortOrder.LayoutOrder
+tabsLayout.Parent = tabs
 
-	local tabsLayout = Instance.new("UIListLayout")
-	tabsLayout.Padding = UDim.new(0, 8)
-	tabsLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	tabsLayout.Parent = tabsFrame
+local content = Instance.new("Frame")
+content.Name = "Content"
+content.Position = UDim2.new(0, 136, 0, 66)
+content.Size = UDim2.new(1, -148, 1, -78)
+content.BackgroundColor3 = Color3.fromRGB(255, 235, 244)
+content.BorderSizePixel = 0
+content.Parent = main
+addCorner(content, 20)
+addStroke(content, Color3.fromRGB(255, 190, 220), 2)
 
-	local contentFrame = Instance.new("Frame")
-	contentFrame.Name = "Content"
-	contentFrame.BackgroundColor3 = Color3.fromRGB(255, 233, 242)
-	contentFrame.Position = UDim2.new(0, 136, 0, 66)
-	contentFrame.Size = UDim2.new(1, -148, 1, -78)
-	contentFrame.BorderSizePixel = 0
-	contentFrame.Parent = hub
-	makeCorner(contentFrame, 20)
-	makeStroke(contentFrame, Color3.fromRGB(255, 185, 215), 2, 0)
+local pages = {}
+local tabButtons = {}
+local currentPage = nil
 
-	local pages = {}
-	local tabButtons = {}
-	local currentPage
+local function createPage(name, headingText, bodyText)
+	local page = Instance.new("Frame")
+	page.Name = name .. "Page"
+	page.BackgroundTransparency = 1
+	page.Size = UDim2.new(1, 0, 1, 0)
+	page.Visible = false
+	page.Parent = content
 
-	local function createPage(name, headerText, bodyText)
-		local page = Instance.new("Frame")
-		page.Name = name .. "Page"
-		page.Size = UDim2.new(1, 0, 1, 0)
-		page.BackgroundTransparency = 1
-		page.Visible = false
-		page.Parent = contentFrame
+	local heading = Instance.new("TextLabel")
+	heading.BackgroundTransparency = 1
+	heading.Position = UDim2.new(0, 16, 0, 14)
+	heading.Size = UDim2.new(1, -32, 0, 32)
+	heading.Text = headingText
+	heading.TextColor3 = Color3.fromRGB(255, 98, 166)
+	heading.TextScaled = true
+	heading.TextXAlignment = Enum.TextXAlignment.Left
+	heading.Font = Enum.Font.GothamBold
+	heading.Parent = page
 
-		local header = Instance.new("TextLabel")
-		header.BackgroundTransparency = 1
-		header.Position = UDim2.new(0, 16, 0, 14)
-		header.Size = UDim2.new(1, -32, 0, 34)
-		header.Text = headerText
-		header.TextColor3 = Color3.fromRGB(255, 98, 166)
-		header.TextScaled = true
-		header.TextXAlignment = Enum.TextXAlignment.Left
-		header.Font = Enum.Font.GothamBold
-		header.Parent = page
+	local body = Instance.new("TextLabel")
+	body.BackgroundTransparency = 1
+	body.Position = UDim2.new(0, 16, 0, 50)
+	body.Size = UDim2.new(1, -32, 0, 84)
+	body.Text = bodyText
+	body.TextWrapped = true
+	body.TextColor3 = Color3.fromRGB(155, 78, 118)
+	body.TextScaled = true
+	body.TextXAlignment = Enum.TextXAlignment.Left
+	body.TextYAlignment = Enum.TextYAlignment.Top
+	body.Font = Enum.Font.GothamMedium
+	body.Parent = page
 
-		local body = Instance.new("TextLabel")
-		body.BackgroundTransparency = 1
-		body.Position = UDim2.new(0, 16, 0, 52)
-		body.Size = UDim2.new(1, -32, 0, 66)
-		body.TextWrapped = true
-		body.Text = bodyText
-		body.TextColor3 = Color3.fromRGB(160, 80, 120)
-		body.TextScaled = true
-		body.TextXAlignment = Enum.TextXAlignment.Left
-		body.TextYAlignment = Enum.TextYAlignment.Top
-		body.Font = Enum.Font.GothamMedium
-		body.Parent = page
+	local action = Instance.new("TextButton")
+	action.AnchorPoint = Vector2.new(0.5, 1)
+	action.Position = UDim2.new(0.5, 0, 1, -16)
+	action.Size = UDim2.new(0.7, 0, 0, 40)
+	action.BackgroundColor3 = Color3.fromRGB(255, 150, 200)
+	action.Text = "Select " .. name
+	action.TextColor3 = Color3.fromRGB(255, 255, 255)
+	action.TextScaled = true
+	action.Font = Enum.Font.GothamBold
+	action.Parent = page
+	addCorner(action, 16)
+	addStroke(action, Color3.fromRGB(255, 235, 245), 2)
 
-		local action = Instance.new("TextButton")
-		action.Name = "Action"
-		action.AnchorPoint = Vector2.new(0.5, 1)
-		action.Position = UDim2.new(0.5, 0, 1, -16)
-		action.Size = UDim2.new(0.7, 0, 0, 40)
-		action.BackgroundColor3 = Color3.fromRGB(255, 150, 200)
+	action.MouseButton1Click:Connect(function()
+		action.Text = name .. " Ready"
+		tween(action, 0.12, {Size = UDim2.new(0.74, 0, 0, 42)}, Enum.EasingStyle.Back)
+		task.wait(0.12)
+		tween(action, 0.12, {Size = UDim2.new(0.7, 0, 0, 40)}, Enum.EasingStyle.Back)
+		task.wait(0.6)
 		action.Text = "Select " .. name
-		action.TextColor3 = Color3.fromRGB(255, 255, 255)
-		action.TextScaled = true
-		action.Font = Enum.Font.GothamBold
-		action.Parent = page
-		makeCorner(action, 16)
-		makeStroke(action, Color3.fromRGB(255, 235, 245), 2, 0)
-
-		action.MouseButton1Click:Connect(function()
-			action.Text = name .. " Ready"
-			tween(action, 0.15, {Size = UDim2.new(0.74, 0, 0, 42)}, Enum.EasingStyle.Back)
-			task.wait(0.15)
-			tween(action, 0.15, {Size = UDim2.new(0.7, 0, 0, 40)}, Enum.EasingStyle.Back)
-			task.wait(0.7)
-			action.Text = "Select " .. name
-		end)
-
-		pages[name] = page
-	end
-
-	local function setActiveTab(name)
-		if currentPage == name then
-			return
-		end
-
-		for tabName, page in pairs(pages) do
-			if tabName == name then
-				page.Visible = true
-				page.Position = UDim2.new(0, 14, 0, 0)
-				tween(page, 0.22, {Position = UDim2.new(0, 0, 0, 0)})
-			else
-				page.Visible = false
-				page.Position = UDim2.new(0, 0, 0, 0)
-			end
-		end
-
-		for tabName, button in pairs(tabButtons) do
-			if tabName == name then
-				tween(button, 0.18, {BackgroundColor3 = Color3.fromRGB(255, 137, 194)})
-				button.TextColor3 = Color3.fromRGB(255, 255, 255)
-			else
-				tween(button, 0.18, {BackgroundColor3 = Color3.fromRGB(255, 231, 240)})
-				button.TextColor3 = Color3.fromRGB(255, 105, 165)
-			end
-		end
-
-		currentPage = name
-	end
-
-	local function createTab(name, order)
-		local button = Instance.new("TextButton")
-		button.Name = name .. "Tab"
-		button.LayoutOrder = order
-		button.Size = UDim2.new(1, 0, 0, 42)
-		button.BackgroundColor3 = Color3.fromRGB(255, 231, 240)
-		button.Text = name
-		button.TextColor3 = Color3.fromRGB(255, 105, 165)
-		button.TextScaled = true
-		button.Font = Enum.Font.GothamBold
-		button.Parent = tabsFrame
-		makeCorner(button, 16)
-		makeStroke(button, Color3.fromRGB(255, 185, 220), 2, 0)
-
-		button.MouseEnter:Connect(function()
-			if currentPage ~= name then
-				tween(button, 0.15, {BackgroundColor3 = Color3.fromRGB(255, 240, 246)})
-			end
-		end)
-
-		button.MouseLeave:Connect(function()
-			if currentPage ~= name then
-				tween(button, 0.15, {BackgroundColor3 = Color3.fromRGB(255, 231, 240)})
-			end
-		end)
-
-		button.MouseButton1Click:Connect(function()
-			setActiveTab(name)
-		end)
-
-		tabButtons[name] = button
-	end
-
-	createPage("Home", "Welcome", "A cute animated hub layout with draggable support, pink styling, and responsive sizing.")
-	createPage("Player", "Player", "Use this page for movement, speed, jump, or personal options in your own project.")
-	createPage("Visuals", "Visuals", "Use this page for display settings, colors, or interface sections in your own project.")
-	createPage("Settings", "Settings", "Store toggles, keybinds, and UI options here. The hide button keeps the hub easy to reopen.")
-
-	createTab("Home", 1)
-	createTab("Player", 2)
-	createTab("Visuals", 3)
-	createTab("Settings", 4)
-	setActiveTab("Home")
-
-	if UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled then
-		hub.Size = UDim2.new(0.9, 0, 0, 250)
-		openButton.Size = UDim2.new(0, 120, 0, 44)
-	end
-
-	local dragging = false
-	local dragInput
-	local dragStart
-	local startPos
-
-	local function updateDrag(input)
-		local delta = input.Position - dragStart
-		hub.Position = UDim2.new(
-			startPos.X.Scale,
-			startPos.X.Offset + delta.X,
-			startPos.Y.Scale,
-			startPos.Y.Offset + delta.Y
-		)
-	end
-
-	topBar.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1
-			or input.UserInputType == Enum.UserInputType.Touch then
-			dragging = true
-			dragStart = input.Position
-			startPos = hub.Position
-
-			input.Changed:Connect(function()
-				if input.UserInputState == Enum.UserInputState.End then
-					dragging = false
-				end
-			end)
-		end
 	end)
 
-	topBar.InputChanged:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseMovement
-			or input.UserInputType == Enum.UserInputType.Touch then
-			dragInput = input
+	pages[name] = page
+end
+
+local function showPage(name)
+	if currentPage == name then
+		return
+	end
+
+	for pageName, page in pairs(pages) do
+		page.Visible = pageName == name
+		if page.Visible then
+			page.Position = UDim2.new(0, 12, 0, 0)
+			tween(page, 0.18, {Position = UDim2.new(0, 0, 0, 0)})
 		end
+	end
+
+	for tabName, button in pairs(tabButtons) do
+		if tabName == name then
+			tween(button, 0.15, {BackgroundColor3 = Color3.fromRGB(255, 137, 194)})
+			button.TextColor3 = Color3.fromRGB(255, 255, 255)
+		else
+			tween(button, 0.15, {BackgroundColor3 = Color3.fromRGB(255, 231, 240)})
+			button.TextColor3 = Color3.fromRGB(255, 105, 165)
+		end
+	end
+
+	currentPage = name
+end
+
+local function createTab(name, order)
+	local button = Instance.new("TextButton")
+	button.Name = name .. "Tab"
+	button.LayoutOrder = order
+	button.Size = UDim2.new(1, 0, 0, 42)
+	button.BackgroundColor3 = Color3.fromRGB(255, 231, 240)
+	button.Text = name
+	button.TextColor3 = Color3.fromRGB(255, 105, 165)
+	button.TextScaled = true
+	button.Font = Enum.Font.GothamBold
+	button.Parent = tabs
+	addCorner(button, 16)
+	addStroke(button, Color3.fromRGB(255, 190, 220), 2)
+
+	button.MouseButton1Click:Connect(function()
+		showPage(name)
 	end)
 
-	UserInputService.InputChanged:Connect(function(input)
-		if dragging and input == dragInput then
-			updateDrag(input)
-		end
-	end)
+	tabButtons[name] = button
+end
 
-	local hubOpen = true
-	local openSize = hub.Size
-	local openTransparency = hub.BackgroundTransparency
+createPage("Home", "Welcome", "This is a clean animated pink GUI with drag support, category tabs, and a hide button.")
+createPage("Player", "Player", "Use this section for player related controls in your own project.")
+createPage("Visuals", "Visuals", "Use this section for colors, overlays, and visual interface options.")
+createPage("Settings", "Settings", "Use this section for UI settings, keybinds, and extra toggles.")
 
-	local function closeHub()
-		if not hubOpen then
-			return
-		end
+createTab("Home", 1)
+createTab("Player", 2)
+createTab("Visuals", 3)
+createTab("Settings", 4)
 
-		hubOpen = false
-		tween(hub, 0.22, {
-			Size = UDim2.new(0, 0, 0, 0),
-			BackgroundTransparency = 1
-		}, Enum.EasingStyle.Back, Enum.EasingDirection.In)
-		tween(shadow, 0.18, {ImageTransparency = 1})
+if UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled then
+	main.Size = UDim2.new(0.9, 0, 0, 250)
+	openButton.Size = UDim2.new(0, 120, 0, 42)
+end
 
-		task.delay(0.2, function()
-			hub.Visible = false
-			openButton.Visible = true
-			openButton.Size = UDim2.new(0, 110, 0, 42)
-			tween(openButton, 0.2, {Size = UDim2.new(0, 132, 0, 48)}, Enum.EasingStyle.Back)
+showPage("Home")
+
+local dragging = false
+local dragStart = nil
+local startPosition = nil
+local dragInput = nil
+
+local function updateDrag(input)
+	if not dragStart or not startPosition then
+		return
+	end
+
+	local delta = input.Position - dragStart
+	main.Position = UDim2.new(
+		startPosition.X.Scale,
+		startPosition.X.Offset + delta.X,
+		startPosition.Y.Scale,
+		startPosition.Y.Offset + delta.Y
+	)
+end
+
+header.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = true
+		dragStart = input.Position
+		startPosition = main.Position
+
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then
+				dragging = false
+			end
 		end)
 	end
-
-	local function openHub()
-		if hubOpen then
-			return
-		end
-
-		hubOpen = true
-		openButton.Visible = false
-		hub.Visible = true
-		hub.Size = UDim2.new(0, 0, 0, 0)
-		hub.BackgroundTransparency = 1
-		shadow.ImageTransparency = 1
-		tween(hub, 0.26, {
-			Size = openSize,
-			BackgroundTransparency = openTransparency
-		}, Enum.EasingStyle.Back)
-		tween(shadow, 0.22, {ImageTransparency = 0.45})
-	end
-
-	hideButton.MouseButton1Click:Connect(closeHub)
-	openButton.MouseButton1Click:Connect(openHub)
-
-	tween(hub, 0.28, {
-		Size = UDim2.new(openSize.X.Scale, openSize.X.Offset + 8, openSize.Y.Scale, openSize.Y.Offset + 8)
-	}, Enum.EasingStyle.Back)
-	task.wait(0.12)
-	tween(hub, 0.2, {Size = openSize}, Enum.EasingStyle.Back)
 end)
 
-if not ok then
-	warn("Involved_Hub failed: " .. tostring(err))
+header.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+		dragInput = input
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if dragging and input == dragInput then
+		updateDrag(input)
+	end
+end)
+
+local isOpen = true
+local openSize = main.Size
+
+local function closeGui()
+	if not isOpen then
+		return
+	end
+
+	isOpen = false
+	tween(main, 0.2, {Size = UDim2.new(0, 0, 0, 0)}, Enum.EasingStyle.Back, Enum.EasingDirection.In)
+	task.delay(0.18, function()
+		main.Visible = false
+		openButton.Visible = true
+		openButton.Size = UDim2.new(0, 100, 0, 40)
+		tween(openButton, 0.18, {Size = UDim2.new(0, 130, 0, 44)}, Enum.EasingStyle.Back)
+	end)
 end
+
+local function openGui()
+	if isOpen then
+		return
+	end
+
+	isOpen = true
+	openButton.Visible = false
+	main.Visible = true
+	main.Size = UDim2.new(0, 0, 0, 0)
+	tween(main, 0.22, {Size = openSize}, Enum.EasingStyle.Back)
+end
+
+hideButton.MouseButton1Click:Connect(closeGui)
+openButton.MouseButton1Click:Connect(openGui)
+
+tween(main, 0.24, {Size = UDim2.new(openSize.X.Scale, openSize.X.Offset + 8, openSize.Y.Scale, openSize.Y.Offset + 8)}, Enum.EasingStyle.Back)
+task.wait(0.1)
+tween(main, 0.16, {Size = openSize}, Enum.EasingStyle.Back)
