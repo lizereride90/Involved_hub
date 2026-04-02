@@ -1,5 +1,4 @@
--- Involved JJS Hub - Clean Base + Auto Vessel Black Flash
--- Feature added: Auto Black Flash on Divergent Fist (Vessel)
+-- Involved JJS Hub - Fly + Lock-On
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
@@ -19,8 +18,12 @@ screenGui.ResetOnSpawn = false
 screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 screenGui.Parent = playerGui
 
-local function tween(object, time, properties)
-    local info = TweenInfo.new(time, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+local function tween(object, time, properties, easingStyle, easingDirection)
+    local info = TweenInfo.new(
+        time,
+        easingStyle or Enum.EasingStyle.Back,
+        easingDirection or Enum.EasingDirection.Out
+    )
     TweenService:Create(object, info, properties):Play()
 end
 
@@ -76,7 +79,7 @@ local subtitle = Instance.new("TextLabel")
 subtitle.BackgroundTransparency = 1
 subtitle.Position = UDim2.new(0, 24, 0, 34)
 subtitle.Size = UDim2.new(1, -160, 0, 16)
-subtitle.Text = "Cute Pink • Auto Vessel Black Flash Added"
+subtitle.Text = "Cute Pink • Fly + Lock-On"
 subtitle.TextColor3 = Color3.fromRGB(255, 220, 235)
 subtitle.TextScaled = true
 subtitle.Font = Enum.Font.GothamMedium
@@ -186,7 +189,7 @@ local function createTab(name, order)
 end
 
 local combatPage = createPage("Combat")
-createPage("Movement")
+local movementPage = createPage("Movement")
 createPage("Visuals")
 createPage("Misc")
 
@@ -197,98 +200,444 @@ createTab("Misc", 4)
 
 showPage("Combat")
 
--- ==================== AUTO VESSEL BLACK FLASH ====================
-local autoBlackFlashEnabled = false
-local blackFlashConnection = nil
-local lastDivergentPress = 0
-local BLACK_FLASH_DELAY = 0.32  -- Optimal timing window (~0.3-0.35s) for Vessel Divergent Fist → Black Flash
+-- ==================== FEATURE CONSTANTS ====================
+local FLY_SPEED = 82
+local FLY_VERTICAL_SPEED = 65
+local LOCKON_MAX_SCREEN_DISTANCE = 190
+local LOCKON_KEY = Enum.KeyCode.T
+local isTouchDevice = UserInputService.TouchEnabled
 
-local function triggerSecondDivergentFist()
-    -- Simulate pressing the 3rd skill (works on both PC and Mobile)
-    pcall(function()
-        -- This is the most reliable client-side way to fire skills in many fighting games like JJS
-        -- If the game uses a specific remote, replace this with the real remote fire
-        -- For now, we use VirtualInput to simulate key/skill press (works well for mobile too)
-        game:GetService("VirtualInputManager"):SendKeyEvent(true, Enum.KeyCode.Three, false, game)
-        task.wait(0.05)
-        game:GetService("VirtualInputManager"):SendKeyEvent(false, Enum.KeyCode.Three, false, game)
-    end)
-end
+-- ==================== FLY ====================
+local flyEnabled = false
+local flyVelocity = nil
+local flyGyro = nil
+local flyConnection = nil
+local flyInput = {
+    Forward = false,
+    Back = false,
+    Left = false,
+    Right = false,
+    Up = false,
+    Down = false
+}
 
-local function setupAutoBlackFlash()
-    if blackFlashConnection then blackFlashConnection:Disconnect() end
+local flyMobileControls = Instance.new("Frame")
+flyMobileControls.Size = UDim2.new(0, 66, 0, 132)
+flyMobileControls.Position = UDim2.new(1, -78, 1, -162)
+flyMobileControls.BackgroundTransparency = 1
+flyMobileControls.Visible = false
+flyMobileControls.Parent = screenGui
 
-    blackFlashConnection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
-        if gameProcessed then return end
+local flyUpButton = Instance.new("TextButton")
+flyUpButton.Size = UDim2.new(0, 62, 0, 62)
+flyUpButton.Position = UDim2.new(0, 2, 0, 0)
+flyUpButton.BackgroundColor3 = Color3.fromRGB(255, 110, 175)
+flyUpButton.Text = "UP"
+flyUpButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+flyUpButton.TextScaled = true
+flyUpButton.Font = Enum.Font.GothamBold
+flyUpButton.Parent = flyMobileControls
+addCorner(flyUpButton, 999)
+addStroke(flyUpButton, Color3.fromRGB(255, 210, 230), 2)
 
-        if autoBlackFlashEnabled then
-            local currentTime = tick()
+local flyDownButton = Instance.new("TextButton")
+flyDownButton.Size = UDim2.new(0, 62, 0, 62)
+flyDownButton.Position = UDim2.new(0, 2, 0, 70)
+flyDownButton.BackgroundColor3 = Color3.fromRGB(255, 110, 175)
+flyDownButton.Text = "DN"
+flyDownButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+flyDownButton.TextScaled = true
+flyDownButton.Font = Enum.Font.GothamBold
+flyDownButton.Parent = flyMobileControls
+addCorner(flyDownButton, 999)
+addStroke(flyDownButton, Color3.fromRGB(255, 210, 230), 2)
 
-            -- Detect Divergent Fist activation (Key 3 on PC or skill tap on mobile)
-            local isDivergentFist = false
-
-            if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == Enum.KeyCode.Three then
-                isDivergentFist = true
-            elseif input.UserInputType == Enum.UserInputType.Touch then
-                -- Mobile skill detection is trickier; we assume tapping skill 3 triggers similar input
-                -- Many executors handle mobile skill taps via InputBegan
-                isDivergentFist = true
-            end
-
-            if isDivergentFist and (currentTime - lastDivergentPress > 1) then
-                lastDivergentPress = currentTime
-                -- Wait for optimal timing then trigger second press for Black Flash
-                task.delay(BLACK_FLASH_DELAY, function()
-                    if autoBlackFlashEnabled then
-                        triggerSecondDivergentFist()
-                        print("Auto Vessel Black Flash triggered!")
-                    end
-                end)
-            end
-        end
-    end)
-end
-
--- Add Toggle to Combat Page
-local toggleFrame = Instance.new("Frame")
-toggleFrame.Size = UDim2.new(1, -20, 0, 58)
-toggleFrame.BackgroundColor3 = Color3.fromRGB(255, 245, 250)
-toggleFrame.Parent = combatPage
-addCorner(toggleFrame, 16)
-
-local toggleLabel = Instance.new("TextLabel")
-toggleLabel.Size = UDim2.new(0.65, 0, 1, 0)
-toggleLabel.Position = UDim2.new(0, 18, 0, 0)
-toggleLabel.BackgroundTransparency = 1
-toggleLabel.Text = "Auto Vessel Black Flash"
-toggleLabel.TextColor3 = Color3.fromRGB(190, 50, 100)
-toggleLabel.TextScaled = true
-toggleLabel.Font = Enum.Font.GothamSemibold
-toggleLabel.TextXAlignment = Enum.TextXAlignment.Left
-toggleLabel.Parent = toggleFrame
-
-local toggleBtn = Instance.new("TextButton")
-toggleBtn.Size = UDim2.new(0, 58, 0, 34)
-toggleBtn.Position = UDim2.new(1, -72, 0.5, -17)
-toggleBtn.BackgroundColor3 = Color3.fromRGB(255, 140, 190)
-toggleBtn.Text = ""
-toggleBtn.Parent = toggleFrame
-addCorner(toggleBtn, 999)
-
-toggleBtn.MouseButton1Click:Connect(function()
-    autoBlackFlashEnabled = not autoBlackFlashEnabled
-    if autoBlackFlashEnabled then
-        tween(toggleBtn, 0.25, {BackgroundColor3 = Color3.fromRGB(80, 255, 120)})
-        setupAutoBlackFlash()
-        print("Auto Vessel Black Flash ENABLED")
-    else
-        tween(toggleBtn, 0.25, {BackgroundColor3 = Color3.fromRGB(255, 140, 190)})
-        if blackFlashConnection then 
-            blackFlashConnection:Disconnect() 
-            blackFlashConnection = nil 
-        end
-        print("Auto Vessel Black Flash DISABLED")
+local function resetFlyInput()
+    for key, _ in pairs(flyInput) do
+        flyInput[key] = false
     end
+end
+
+local function getLocalCharacterParts()
+    local character = player.Character
+    if not character then
+        return nil, nil
+    end
+
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    local root = character:FindFirstChild("HumanoidRootPart")
+    return humanoid, root
+end
+
+local function stopFly()
+    if flyConnection then
+        flyConnection:Disconnect()
+        flyConnection = nil
+    end
+    if flyVelocity then
+        flyVelocity:Destroy()
+        flyVelocity = nil
+    end
+    if flyGyro then
+        flyGyro:Destroy()
+        flyGyro = nil
+    end
+
+    local humanoid = getLocalCharacterParts()
+    if humanoid then
+        humanoid.PlatformStand = false
+    end
+
+    resetFlyInput()
+    flyMobileControls.Visible = false
+end
+
+local function startFly()
+    stopFly()
+
+    local humanoid, root = getLocalCharacterParts()
+    if not humanoid or not root then
+        flyEnabled = false
+        return
+    end
+
+    flyVelocity = Instance.new("BodyVelocity")
+    flyVelocity.Name = "InvolvedFlyVelocity"
+    flyVelocity.MaxForce = Vector3.new(1e9, 1e9, 1e9)
+    flyVelocity.P = 1250
+    flyVelocity.Velocity = Vector3.new(0, 0, 0)
+    flyVelocity.Parent = root
+
+    flyGyro = Instance.new("BodyGyro")
+    flyGyro.Name = "InvolvedFlyGyro"
+    flyGyro.MaxTorque = Vector3.new(1e9, 1e9, 1e9)
+    flyGyro.P = 5000
+    flyGyro.CFrame = root.CFrame
+    flyGyro.Parent = root
+
+    humanoid.PlatformStand = false
+    flyMobileControls.Visible = isTouchDevice
+
+    flyConnection = RunService.RenderStepped:Connect(function()
+        if not flyEnabled then return end
+
+        local currentHumanoid, currentRoot = getLocalCharacterParts()
+        if not currentHumanoid or not currentRoot or not flyVelocity or not flyGyro then
+            return
+        end
+
+        local camera = workspace.CurrentCamera
+        if not camera then
+            return
+        end
+
+        local forward = camera.CFrame.LookVector
+        local right = camera.CFrame.RightVector
+        local direction = currentHumanoid.MoveDirection
+
+        -- Keyboard fallback for executors where MoveDirection is unreliable during fly.
+        if flyInput.Forward then direction = direction + forward end
+        if flyInput.Back then direction = direction - forward end
+        if flyInput.Right then direction = direction + right end
+        if flyInput.Left then direction = direction - right end
+
+        local horizontalVelocity = Vector3.new(0, 0, 0)
+        if direction.Magnitude > 0 then
+            horizontalVelocity = direction.Unit * FLY_SPEED
+        end
+
+        local verticalVelocity = 0
+        if flyInput.Up then verticalVelocity = verticalVelocity + FLY_VERTICAL_SPEED end
+        if flyInput.Down then verticalVelocity = verticalVelocity - FLY_VERTICAL_SPEED end
+
+        flyVelocity.Velocity = Vector3.new(horizontalVelocity.X, verticalVelocity, horizontalVelocity.Z)
+        flyGyro.CFrame = CFrame.new(currentRoot.Position, currentRoot.Position + camera.CFrame.LookVector)
+    end)
+end
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
+
+    if input.KeyCode == Enum.KeyCode.W then flyInput.Forward = true end
+    if input.KeyCode == Enum.KeyCode.S then flyInput.Back = true end
+    if input.KeyCode == Enum.KeyCode.A then flyInput.Left = true end
+    if input.KeyCode == Enum.KeyCode.D then flyInput.Right = true end
+    if input.KeyCode == Enum.KeyCode.Space then flyInput.Up = true end
+    if input.KeyCode == Enum.KeyCode.LeftControl then flyInput.Down = true end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
+
+    if input.KeyCode == Enum.KeyCode.W then flyInput.Forward = false end
+    if input.KeyCode == Enum.KeyCode.S then flyInput.Back = false end
+    if input.KeyCode == Enum.KeyCode.A then flyInput.Left = false end
+    if input.KeyCode == Enum.KeyCode.D then flyInput.Right = false end
+    if input.KeyCode == Enum.KeyCode.Space then flyInput.Up = false end
+    if input.KeyCode == Enum.KeyCode.LeftControl then flyInput.Down = false end
+end)
+
+local function bindHoldToFly(button, keyName)
+    button.MouseButton1Down:Connect(function()
+        flyInput[keyName] = true
+    end)
+    button.MouseButton1Up:Connect(function()
+        flyInput[keyName] = false
+    end)
+    button.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch then
+            flyInput[keyName] = false
+        end
+    end)
+end
+
+bindHoldToFly(flyUpButton, "Up")
+bindHoldToFly(flyDownButton, "Down")
+
+UserInputService.TouchEnded:Connect(function()
+    flyInput.Up = false
+    flyInput.Down = false
+end)
+
+-- ==================== LOCK-ON ====================
+local lockOnEnabled = false
+local lockOnTarget = nil
+local lockOnConnection = nil
+
+local lockOnButton = Instance.new("TextButton")
+lockOnButton.Size = UDim2.new(0, 56, 0, 56)
+lockOnButton.Position = UDim2.new(0, 12, 0, 12)
+lockOnButton.BackgroundColor3 = Color3.fromRGB(255, 110, 175)
+lockOnButton.Text = "LOCK"
+lockOnButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+lockOnButton.TextScaled = true
+lockOnButton.Font = Enum.Font.GothamBold
+lockOnButton.Visible = false
+lockOnButton.Parent = screenGui
+addCorner(lockOnButton, 999)
+addStroke(lockOnButton, Color3.fromRGB(255, 210, 230), 2)
+
+local function updateLockOnButtonVisual()
+    if lockOnTarget then
+        tween(lockOnButton, 0.2, {BackgroundColor3 = Color3.fromRGB(80, 255, 120)})
+        lockOnButton.Text = "ON"
+    else
+        tween(lockOnButton, 0.2, {BackgroundColor3 = Color3.fromRGB(255, 110, 175)})
+        lockOnButton.Text = "LOCK"
+    end
+end
+
+local function clearLockOn()
+    lockOnTarget = nil
+    updateLockOnButtonVisual()
+end
+
+local function getValidTargetParts(targetPlayer)
+    if not targetPlayer or not targetPlayer.Character then
+        return nil, nil
+    end
+
+    local humanoid = targetPlayer.Character:FindFirstChildOfClass("Humanoid")
+    local root = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not humanoid or humanoid.Health <= 0 or not root then
+        return nil, nil
+    end
+
+    return humanoid, root
+end
+
+local function getTargetInView()
+    local camera = workspace.CurrentCamera
+    if not camera then return nil end
+
+    local center = Vector2.new(camera.ViewportSize.X * 0.5, camera.ViewportSize.Y * 0.5)
+    local closestPlayer = nil
+    local closestDistance = LOCKON_MAX_SCREEN_DISTANCE
+
+    for _, otherPlayer in ipairs(Players:GetPlayers()) do
+        if otherPlayer ~= player then
+            local _, root = getValidTargetParts(otherPlayer)
+            if root then
+                local viewportPoint, onScreen = camera:WorldToViewportPoint(root.Position)
+                if onScreen and viewportPoint.Z > 0 then
+                    local distance = (Vector2.new(viewportPoint.X, viewportPoint.Y) - center).Magnitude
+                    if distance < closestDistance then
+                        closestDistance = distance
+                        closestPlayer = otherPlayer
+                    end
+                end
+            end
+        end
+    end
+
+    return closestPlayer
+end
+
+local function toggleLockOnTarget()
+    if not lockOnEnabled then
+        return
+    end
+
+    if lockOnTarget then
+        clearLockOn()
+        print("Lock-On released.")
+        return
+    end
+
+    local target = getTargetInView()
+    if target then
+        lockOnTarget = target
+        updateLockOnButtonVisual()
+        print("Lock-On target: " .. target.Name)
+    else
+        print("No target near screen center to lock.")
+    end
+end
+
+local function setupLockOnLoop()
+    if lockOnConnection then
+        lockOnConnection:Disconnect()
+        lockOnConnection = nil
+    end
+
+    lockOnConnection = RunService.RenderStepped:Connect(function()
+        if not lockOnEnabled or not lockOnTarget then return end
+
+        local _, targetRoot = getValidTargetParts(lockOnTarget)
+        if not targetRoot then
+            clearLockOn()
+            return
+        end
+
+        local localHumanoid, localRoot = getLocalCharacterParts()
+        if not localHumanoid or not localRoot then
+            clearLockOn()
+            return
+        end
+
+        local targetPosition = targetRoot.Position
+        localRoot.CFrame = CFrame.new(
+            localRoot.Position,
+            Vector3.new(targetPosition.X, localRoot.Position.Y, targetPosition.Z)
+        )
+
+        local camera = workspace.CurrentCamera
+        if camera then
+            camera.CFrame = CFrame.new(camera.CFrame.Position, targetPosition)
+        end
+    end)
+end
+
+setupLockOnLoop()
+
+lockOnButton.MouseButton1Click:Connect(function()
+    toggleLockOnTarget()
+end)
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == LOCKON_KEY then
+        if lockOnEnabled then
+            toggleLockOnTarget()
+        else
+            print("Enable Lock-On first from Combat tab.")
+        end
+    end
+end)
+
+local lockToggleFrame = Instance.new("Frame")
+lockToggleFrame.Size = UDim2.new(1, -20, 0, 58)
+lockToggleFrame.BackgroundColor3 = Color3.fromRGB(255, 245, 250)
+lockToggleFrame.Parent = combatPage
+addCorner(lockToggleFrame, 16)
+
+local lockToggleLabel = Instance.new("TextLabel")
+lockToggleLabel.Size = UDim2.new(0.65, 0, 1, 0)
+lockToggleLabel.Position = UDim2.new(0, 18, 0, 0)
+lockToggleLabel.BackgroundTransparency = 1
+lockToggleLabel.Text = "Enable Lock-On (T on PC)"
+lockToggleLabel.TextColor3 = Color3.fromRGB(190, 50, 100)
+lockToggleLabel.TextScaled = true
+lockToggleLabel.Font = Enum.Font.GothamSemibold
+lockToggleLabel.TextXAlignment = Enum.TextXAlignment.Left
+lockToggleLabel.Parent = lockToggleFrame
+
+local lockToggleBtn = Instance.new("TextButton")
+lockToggleBtn.Size = UDim2.new(0, 58, 0, 34)
+lockToggleBtn.Position = UDim2.new(1, -72, 0.5, -17)
+lockToggleBtn.BackgroundColor3 = Color3.fromRGB(255, 140, 190)
+lockToggleBtn.Text = ""
+lockToggleBtn.Parent = lockToggleFrame
+addCorner(lockToggleBtn, 999)
+
+lockToggleBtn.MouseButton1Click:Connect(function()
+    lockOnEnabled = not lockOnEnabled
+    if lockOnEnabled then
+        tween(lockToggleBtn, 0.25, {BackgroundColor3 = Color3.fromRGB(80, 255, 120)})
+        lockOnButton.Visible = isTouchDevice
+        if isTouchDevice then
+            print("Lock-On ENABLED. Tap top-left LOCK button.")
+        else
+            print("Lock-On ENABLED. Press T to lock/unlock.")
+        end
+    else
+        tween(lockToggleBtn, 0.25, {BackgroundColor3 = Color3.fromRGB(255, 140, 190)})
+        lockOnButton.Visible = false
+        clearLockOn()
+        print("Lock-On button DISABLED.")
+    end
+end)
+
+local flyToggleFrame = Instance.new("Frame")
+flyToggleFrame.Size = UDim2.new(1, -20, 0, 58)
+flyToggleFrame.BackgroundColor3 = Color3.fromRGB(255, 245, 250)
+flyToggleFrame.Parent = movementPage
+addCorner(flyToggleFrame, 16)
+
+local flyToggleLabel = Instance.new("TextLabel")
+flyToggleLabel.Size = UDim2.new(0.65, 0, 1, 0)
+flyToggleLabel.Position = UDim2.new(0, 18, 0, 0)
+flyToggleLabel.BackgroundTransparency = 1
+flyToggleLabel.Text = "Fly (PC: WASD, Mobile: Joystick)"
+flyToggleLabel.TextColor3 = Color3.fromRGB(190, 50, 100)
+flyToggleLabel.TextScaled = true
+flyToggleLabel.Font = Enum.Font.GothamSemibold
+flyToggleLabel.TextXAlignment = Enum.TextXAlignment.Left
+flyToggleLabel.Parent = flyToggleFrame
+
+local flyToggleBtn = Instance.new("TextButton")
+flyToggleBtn.Size = UDim2.new(0, 58, 0, 34)
+flyToggleBtn.Position = UDim2.new(1, -72, 0.5, -17)
+flyToggleBtn.BackgroundColor3 = Color3.fromRGB(255, 140, 190)
+flyToggleBtn.Text = ""
+flyToggleBtn.Parent = flyToggleFrame
+addCorner(flyToggleBtn, 999)
+
+flyToggleBtn.MouseButton1Click:Connect(function()
+    flyEnabled = not flyEnabled
+    if flyEnabled then
+        startFly()
+        if flyEnabled then
+            tween(flyToggleBtn, 0.25, {BackgroundColor3 = Color3.fromRGB(80, 255, 120)})
+            print("Fly ENABLED")
+        else
+            tween(flyToggleBtn, 0.25, {BackgroundColor3 = Color3.fromRGB(255, 140, 190)})
+            print("Fly failed to start (missing character/root).")
+        end
+    else
+        stopFly()
+        tween(flyToggleBtn, 0.25, {BackgroundColor3 = Color3.fromRGB(255, 140, 190)})
+        print("Fly DISABLED")
+    end
+end)
+
+player.CharacterAdded:Connect(function()
+    task.wait(0.35)
+    if flyEnabled then
+        startFly()
+    end
+    clearLockOn()
 end)
 
 -- Drag, Open/Close, Initial Animation (same as before)
@@ -348,5 +697,5 @@ openButton.MouseButton1Click:Connect(openGui)
 main.Size = UDim2.new(0, 0, 0, 0)
 tween(main, 0.28, {Size = originalSize}, Enum.EasingStyle.Back)
 
-print("✅ Involved JJS Hub Loaded with Auto Vessel Black Flash! 💖")
-print("Toggle it in Combat tab. Timing is ~0.32s — adjust BLACK_FLASH_DELAY if needed.")
+print("✅ Involved JJS Hub Loaded (Fly + Lock-On) 💖")
+print("PC Lock-On key: T | Mobile Lock-On: top-left LOCK button")
